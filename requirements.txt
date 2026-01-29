@@ -1,0 +1,35 @@
+# EMG Learning Project - Python依赖包
+# 使用方法: pip install -r requirements.txt
+
+# 核心科学计算库
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# 数据可视化
+matplotlib>=3.4.0
+seaborn>=0.11.0
+
+# 机器学习
+scikit-learn>=0.24.0
+
+# 实时绘图和GUI
+pyqtgraph>=0.12.0
+PyQt5>=5.15.0
+
+# 串口通信（用于硬件设备）
+pyserial>=3.5
+
+# Jupyter笔记本（可选，用于交互式学习）
+jupyter>=1.0.0
+notebook>=6.4.0
+
+# 数据导出
+openpyxl>=3.0.0
+
+# 游戏开发（用于EMG控制游戏项目）
+pygame>=2.0.0
+
+# 辅助工具
+tqdm>=4.60.0  # 进度条
+joblib>=1.0.0  # 模型保存
