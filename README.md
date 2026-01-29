@@ -233,20 +233,90 @@ pyserial>=3.5
 
 ## 学习资源
 
-### 在线课程
+### 📚 资源导航（重要！）
+
+本项目提供了丰富的学习资源，强烈建议按以下顺序查看：
+
+1. **[学习资源快速索引](docs/学习资源快速索引.md)** ⭐⭐⭐⭐⭐
+   - 按10周计划整理的所有资源
+   - 包含视频、文章、代码、论文
+   - 提供学习路线图和使用建议
+   - **新手必看，帮你快速找到需要的资源！**
+
+2. **[EMG学习资源汇总](docs/EMG学习资源汇总.md)** ⭐⭐⭐⭐⭐
+   - 详细的在线资源汇总（40+链接）
+   - 按内容类型、难度、语言分类
+   - 包含学习建议和资源评价
+
+3. **[视频资源清单](resources/videos/视频资源清单.md)** ⭐⭐⭐⭐
+   - YouTube和B站视频教程
+   - 视频学习路线图
+   - 观看建议和笔记模板
+
+4. **[数据集资源指南](docs/数据集资源指南.md)**
+   - 公开EMG数据集获取方法
+   - 数据集使用说明
+
+### 🎥 推荐视频教程（入门必看）
+
+**YouTube（英文）：**
+- [Surface EMG Signal Processing Part 1](https://youtu.be/5AtAoO51vWQ) - 信号处理基础，⭐⭐⭐⭐⭐
+
+**Bilibili（中文）：**
+- [多通道肌电传感器与应用](https://www.bilibili.com/opus/676738656717766660) - 实际应用演示，⭐⭐⭐⭐
+
+### 📝 推荐博客文章
+
+**中文博客（代码实例）：**
+- [CSDN：EMG肌电信号处理合集（含Python代码）](https://blog.csdn.net/YINTENAXIONGNAIER/article/details/134566397) - ⭐⭐⭐⭐⭐
+  - 包含完整的Python代码实现
+  - 适合Week 6信号预处理学习
+
+**基础概念：**
+- [知乎：EMG肌电图原理与作用](https://zhuanlan.zhihu.com/p/408281822) - 中文，快速理解基础
+- [Wikipedia: Electromyography](https://en.wikipedia.org/wiki/Electromyography) - 英文，全面定义
+
+### 📄 学术资源（进阶学习）
+
+- [Surface EMG Best Practices](https://colab.ws/articles/10.1016%2Fj.jelekin.2020.102440) - 采集最佳实践教程，⭐⭐⭐⭐⭐
+- [Roberto Merletti教程集](https://www.robertomerletti.it/it/emg/material/tutorials/) - 权威EMG教程，⭐⭐⭐⭐⭐
+- [arXiv：EMG信号处理技术综述](https://arxiv.org/pdf/2304.04098) - 开源综述论文
+
+### 📊 公开数据集
+
+- [NinaPro Database](http://ninapro.hevs.ch/) - 手部动作EMG数据集
+- [PhysioNet EMG Database](https://physionet.org/) - 生理信号数据库
+
+### 💻 在线课程
+
+- Coursera: [机器学习](https://www.coursera.org/learn/machine-learning) - 吴恩达，中文字幕
 - Coursera: "Digital Signal Processing"
 - edX: "Introduction to Biomedical Signals"
 
-### 书籍
+### 📖 参考书籍
+
 - "Biomedical Signal Analysis" by Rangaraj M. Rangayyan
 - "Introduction to EMG Signal Processing" by Edward Clancy
 
-### 数据集
-- [Ninapro Database](http://ninapro.hevs.ch/) - 公开的EMG手势数据集
-- [PhysioNet EMG Database](https://physionet.org/)
+### 🔍 如何使用这些资源
 
-### 视频教程
-- 链接在 [resources/videos/](resources/videos/) 文件夹
+**零基础学习者：**
+1. 先看[学习资源快速索引](docs/学习资源快速索引.md)了解整体
+2. 观看YouTube和B站视频建立直观认知（1-2小时）
+3. 阅读本项目的详细文档（code/week01-02/）
+4. 按10周计划循序渐进
+
+**有编程基础：**
+1. 快速浏览概念资源（Wikipedia、知乎）
+2. 重点学习CSDN的Python代码实例
+3. 直接运行本项目代码
+4. 参考scikit-learn文档实现机器学习
+
+**研究人员：**
+1. 阅读Roberto Merletti教程集
+2. 研读学术论文和综述
+3. 使用本项目作为实验平台
+4. 参考Best Practices规范研究方法
 
 ---
 
