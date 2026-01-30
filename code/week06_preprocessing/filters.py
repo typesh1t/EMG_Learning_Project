@@ -35,6 +35,13 @@ class EMGFilters:
         """
         # 计算归一化频率（奈奎斯特频率的分数）
         nyquist = 0.5 * self.fs
+
+        # 确保频率在有效范围内（0 < freq < nyquist）
+        # 高截止频率不能超过奈奎斯特频率的95%，避免数值问题
+        max_freq = nyquist * 0.95
+        if highcut >= max_freq:
+            highcut = max_freq
+
         low = lowcut / nyquist
         high = highcut / nyquist
 
@@ -59,6 +66,12 @@ class EMGFilters:
             filtered_signal: 滤波后的信号
         """
         nyquist = 0.5 * self.fs
+
+        # 确保截止频率不超过奈奎斯特频率的95%
+        max_freq = nyquist * 0.95
+        if cutoff >= max_freq:
+            cutoff = max_freq
+
         normal_cutoff = cutoff / nyquist
         b, a = butter(order, normal_cutoff, btype='low')
         filtered_signal = filtfilt(b, a, signal)
