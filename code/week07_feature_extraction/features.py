@@ -77,7 +77,7 @@ class EMGFeatures:
         return features
 
     @staticmethod
-    def extract_freq_features(signal, fs=1000):
+    def extract_freq_features(signal, fs=1000, return_spectrum=False):
         """
         提取频域特征
 
@@ -139,6 +139,7 @@ class EMGFeatures:
         else:
             freq_ratio = 0
 
+        # 默认只返回“数值特征”，避免把频谱数组也拼进特征向量导致维度错误。
         features = {
             'MNF': mnf,
             'MDF': mdf,
@@ -147,15 +148,18 @@ class EMGFeatures:
             'SM1': sm1,
             'SM2': sm2,
             'SM3': sm3,
-            'Freq_Ratio': freq_ratio,
-            'power_spectrum': power,
-            'frequencies': xf
+            'Freq_Ratio': freq_ratio
         }
+
+        if return_spectrum:
+            features['power_spectrum'] = power
+            features['frequencies'] = xf
 
         return features
 
     @staticmethod
-    def sliding_window_features(signal, window_size=200, step=100, fs=1000):
+    def sliding_window_features(signal, window_size=200, step=100, fs=1000,
+                                include_time=True, include_freq=True):
         """
         使用滑动窗口提取特征
 
@@ -170,6 +174,9 @@ class EMGFeatures:
             feature_names: 特征名称列表
             window_times: 每个窗口的中心时间
         """
+        if not include_time and not include_freq:
+            raise ValueError("At least one of include_time/include_freq must be True")
+
         num_windows = (len(signal) - window_size) // step + 1
 
         all_features = []
@@ -185,28 +192,23 @@ class EMGFeatures:
             window_times.append(center_time)
 
             # 提取时域特征
-            time_feat = EMGFeatures.extract_time_features(window)
+            time_feat = EMGFeatures.extract_time_features(window) if include_time else None
 
             # 提取频域特征
-            freq_feat = EMGFeatures.extract_freq_features(window, fs)
+            freq_feat = EMGFeatures.extract_freq_features(window, fs) if include_freq else None
 
-            # 合并特征（去除非数值项）
-            features = {
-                'MAV': time_feat['MAV'],
-                'RMS': time_feat['RMS'],
-                'VAR': time_feat['VAR'],
-                'WL': time_feat['WL'],
-                'ZC': time_feat['ZC'],
-                'SSC': time_feat['SSC'],
-                'IEMG': time_feat['IEMG'],
-                'DASDV': time_feat['DASDV'],
-                'PEAK': time_feat['PEAK'],
-                'MNF': freq_feat['MNF'],
-                'MDF': freq_feat['MDF'],
-                'Peak_Freq': freq_feat['Peak_Freq'],
-                'Total_Power': freq_feat['Total_Power'],
-                'Freq_Ratio': freq_feat['Freq_Ratio']
-            }
+            # 合并特征（保持固定顺序，确保特征矩阵列一致）
+            features = {}
+
+            if include_time:
+                for name in ['MAV', 'RMS', 'VAR', 'WL', 'ZC', 'SSC',
+                             'IEMG', 'DASDV', 'PEAK', 'MEAN']:
+                    features[name] = time_feat[name]
+
+            if include_freq:
+                for name in ['MNF', 'MDF', 'Peak_Freq', 'Total_Power',
+                             'SM1', 'SM2', 'SM3', 'Freq_Ratio']:
+                    features[name] = freq_feat[name]
 
             all_features.append(features)
 

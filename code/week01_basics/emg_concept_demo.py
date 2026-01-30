@@ -12,6 +12,13 @@ sys.path.insert(0, str(project_root))
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogFormatter
+
+# 兼容性处理：在某些环境（尤其是 Jupyter/IPython）里，标准库 `code` 可能先被导入，
+# 导致 `code.utils.*` 不是包。这里把项目的 `code/` 目录挂到 `code.__path__`。
+import code as _code
+if not hasattr(_code, '__path__'):
+    _code.__path__ = [str(project_root / 'code')]
 
 # 配置中文字体
 try:
@@ -21,6 +28,12 @@ except:
     # 如果导入失败，使用简单配置
     plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial']
     plt.rcParams['axes.unicode_minus'] = False
+
+
+def _is_interactive_backend():
+    """判断当前 matplotlib 后端是否支持交互式显示。"""
+    backend = str(plt.get_backend()).lower()
+    return backend not in {'agg', 'pdf', 'ps', 'svg', 'cairo', 'template'}
 
 def generate_emg_like_signal(duration=5, fs=1000, rest_duration=1, contraction_duration=2):
     """
@@ -43,36 +56,76 @@ def generate_emg_like_signal(duration=5, fs=1000, rest_duration=1, contraction_d
     contraction_start = int(rest_duration * fs)
     contraction_end = int((rest_duration + contraction_duration) * fs)
 
-    # 收缩时信号幅度增大
-    contraction_signal = np.random.normal(0, 0.5, contraction_end - contraction_start)
-    signal[contraction_start:contraction_end] += contraction_signal
+    # 收缩时信号幅度增大：用多频率成分 + 噪声来模拟（更接近真实 EMG 的“宽带随机”特性）
+    n = contraction_end - contraction_start
+    t_seg = t[contraction_start:contraction_end]
+    contraction = np.zeros(n)
+
+    # 常见 EMG 有效频段大约在 20–450Hz，这里用 70–145Hz 的多频率叠加做示意
+    for freq in range(70, 150, 15):
+        amplitude = np.random.uniform(0.15, 0.35)
+        phase = np.random.uniform(0, 2 * np.pi)
+        contraction += amplitude * np.sin(2 * np.pi * freq * t_seg + phase)
+
+    # 叠加随机噪声（模拟运动单元随机放电）
+    contraction += np.random.normal(0, 0.15, n)
+
+    # 包络：收缩期通常有“渐强-渐弱”，这里用 Hann 窗做示意
+    envelope = np.hanning(n)
+    contraction *= (0.3 + 0.7 * envelope)
+
+    signal[contraction_start:contraction_end] += contraction
 
     return t, signal
 
 
-def visualize_emg_concept():
+def visualize_emg_concept(duration=5, fs=1000, rest_duration=1, contraction_duration=2,
+                          show=None, save_path='code/week01_basics/emg_concept_demo.png'):
     """可视化EMG信号的基本概念"""
 
     # 生成模拟信号
-    t, signal = generate_emg_like_signal(duration=5, fs=1000)
+    t, signal = generate_emg_like_signal(
+        duration=duration,
+        fs=fs,
+        rest_duration=rest_duration,
+        contraction_duration=contraction_duration,
+    )
+
+    # 计算一个简单的“能量包络”（整流 + 滑动平均），用于直观显示肌肉激活强度变化
+    window = max(1, int(0.05 * fs))  # 50ms
+    rectified = np.abs(signal)
+    envelope = np.convolve(rectified, np.ones(window) / window, mode='same')
+
+    # 计算静息/收缩段的 RMS，用于教学对比
+    rest_end = int(rest_duration * fs)
+    contraction_start = rest_end
+    contraction_end = int((rest_duration + contraction_duration) * fs)
+    rms_rest = float(np.sqrt(np.mean(signal[:rest_end] ** 2)))
+    rms_contraction = float(np.sqrt(np.mean(signal[contraction_start:contraction_end] ** 2)))
+    print(f"\n信号强度对比（RMS）:")
+    print(f"  静息期 RMS: {rms_rest:.4f} mV")
+    print(f"  收缩期 RMS: {rms_contraction:.4f} mV")
 
     # 创建图表
-    fig, axes = plt.subplots(3, 1, figsize=(14, 10))
+    fig, axes = plt.subplots(4, 1, figsize=(14, 12))
     fig.suptitle('EMG肌电信号概念演示', fontsize=16, fontweight='bold')
 
     # 1. 完整信号
     axes[0].plot(t, signal, linewidth=0.5, color='blue')
+    axes[0].plot(t, envelope, linewidth=1.0, color='black', alpha=0.8, label='包络(整流+平滑)')
     axes[0].set_ylabel('幅度 (mV)', fontsize=12)
     axes[0].set_title('完整EMG信号：静息 → 收缩 → 放松', fontsize=12)
     axes[0].grid(True, alpha=0.3)
-    axes[0].axvspan(0, 1, alpha=0.2, color='green', label='静息期')
-    axes[0].axvspan(1, 3, alpha=0.2, color='red', label='收缩期')
-    axes[0].axvspan(3, 5, alpha=0.2, color='green', label='放松期')
+    axes[0].axvspan(0, rest_duration, alpha=0.15, color='green', label='静息期')
+    axes[0].axvspan(rest_duration, rest_duration + contraction_duration,
+                    alpha=0.15, color='red', label='收缩期')
+    axes[0].axvspan(rest_duration + contraction_duration, duration,
+                    alpha=0.15, color='green', label='放松期')
     axes[0].legend(loc='upper right')
     axes[0].set_ylim(-2, 2)
 
     # 2. 静息期放大
-    rest_samples = int(0.5 * 1000)  # 前0.5秒
+    rest_samples = int(0.5 * fs)  # 前0.5秒
     axes[1].plot(t[:rest_samples], signal[:rest_samples], linewidth=0.8, color='green')
     axes[1].set_ylabel('幅度 (mV)', fontsize=12)
     axes[1].set_title('静息期放大：低幅度基线噪声', fontsize=12)
@@ -80,8 +133,6 @@ def visualize_emg_concept():
     axes[1].set_ylim(-0.1, 0.1)
 
     # 3. 收缩期放大
-    contraction_start = int(1.5 * 1000)
-    contraction_end = int(2 * 1000)
     axes[2].plot(t[contraction_start:contraction_end],
                 signal[contraction_start:contraction_end],
                 linewidth=0.8, color='red')
@@ -90,10 +141,29 @@ def visualize_emg_concept():
     axes[2].set_title('收缩期放大：高幅度随机信号', fontsize=12)
     axes[2].grid(True, alpha=0.3)
 
+    # 4. 收缩期频谱（用对数坐标更容易看清尖峰/能量分布）
+    seg = signal[contraction_start:contraction_end]
+    freqs = np.fft.rfftfreq(len(seg), d=1.0 / fs)
+    power = (np.abs(np.fft.rfft(seg)) ** 2) / len(seg)
+
+    axes[3].semilogy(freqs, power, linewidth=1.0, color='purple')
+    axes[3].yaxis.set_major_formatter(LogFormatter(base=10, labelOnlyBase=False))
+    axes[3].set_xlim(0, 300)
+    axes[3].set_xlabel('频率 (Hz)', fontsize=12)
+    axes[3].set_ylabel('功率', fontsize=12)
+    axes[3].set_title('收缩期频谱（0–300Hz）', fontsize=12)
+    axes[3].grid(True, alpha=0.3)
+
     plt.tight_layout()
-    plt.savefig('code/week01_basics/emg_concept_demo.png', dpi=150)
-    print("✓ 图片已保存到: code/week01_basics/emg_concept_demo.png")
-    plt.show()
+    plt.savefig(save_path, dpi=150)
+    print(f"✓ 图片已保存到: {save_path}")
+
+    if show is None:
+        show = _is_interactive_backend()
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
 
 
 def explain_emg_characteristics():

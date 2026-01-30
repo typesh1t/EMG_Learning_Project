@@ -19,18 +19,22 @@ def setup_chinese_font():
     if system == 'Windows':
         # Windows系统字体
         fonts = ['SimHei', 'Microsoft YaHei', 'SimSun', 'KaiTi']
+        # 这些字体通常包含各种符号（如 ❶❷❸），可减少 “Glyph missing” 警告
+        fallback_fonts = ['Segoe UI Symbol', 'Arial Unicode MS', 'DejaVu Sans']
     elif system == 'Darwin':  # macOS
         # macOS系统字体
         fonts = ['PingFang SC', 'Heiti SC', 'STHeiti', 'Arial Unicode MS']
+        fallback_fonts = ['Arial Unicode MS', 'DejaVu Sans']
     else:  # Linux
         # Linux系统字体
         fonts = ['WenQuanYi Micro Hei', 'WenQuanYi Zen Hei', 'Droid Sans Fallback', 'AR PL UMing CN']
+        fallback_fonts = ['DejaVu Sans']
 
     # 尝试设置字体
     font_set = False
     for font in fonts:
         try:
-            plt.rcParams['font.sans-serif'] = [font]
+            plt.rcParams['font.sans-serif'] = [font, *fallback_fonts]
             plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
             # 测试字体是否可用

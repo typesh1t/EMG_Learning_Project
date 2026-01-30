@@ -7,8 +7,16 @@ EMG信号查看器
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogFormatter
 from pathlib import Path
 import argparse
+
+
+def _is_interactive_backend():
+    """判断当前 matplotlib 后端是否支持交互式显示。"""
+    backend = str(plt.get_backend()).lower()
+    return backend not in {'agg', 'pdf', 'ps', 'svg', 'cairo', 'template'}
+
 
 def load_emg_data(filepath):
     """
@@ -31,7 +39,7 @@ def load_emg_data(filepath):
 
     return data
 
-def plot_multichannel_signal(data, save_path=None):
+def plot_multichannel_signal(data, save_path=None, show=None):
     """
     绘制多通道EMG信号
 
@@ -86,13 +94,19 @@ def plot_multichannel_signal(data, save_path=None):
     plt.tight_layout()
 
     if save_path:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"✓ 图表已保存到: {save_path}")
 
-    plt.show()
+    if show is None:
+        show = _is_interactive_backend()
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
 
 
-def plot_signal_statistics(data, save_path=None):
+def plot_signal_statistics(data, save_path=None, show=None):
     """
     绘制信号统计信息
 
@@ -141,10 +155,16 @@ def plot_signal_statistics(data, save_path=None):
     plt.tight_layout()
 
     if save_path:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"✓ 统计图已保存到: {save_path}")
 
-    plt.show()
+    if show is None:
+        show = _is_interactive_backend()
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
 
     # 打印统计表
     print("\n信号统计信息:")
@@ -152,7 +172,7 @@ def plot_signal_statistics(data, save_path=None):
     print()
 
 
-def plot_frequency_spectrum(data, fs=1000, save_path=None):
+def plot_frequency_spectrum(data, fs=1000, save_path=None, show=None):
     """
     绘制频谱
 
@@ -185,6 +205,7 @@ def plot_frequency_spectrum(data, fs=1000, save_path=None):
         power = 2.0/N * np.abs(yf[:N//2])
 
         ax.semilogy(xf, power, linewidth=1)
+        ax.yaxis.set_major_formatter(LogFormatter(base=10, labelOnlyBase=False))
         ax.set_ylabel(f'{ch_name}\n功率')
         ax.set_xlim(0, 300)  # 只显示0-300Hz
         ax.grid(True, alpha=0.3)
@@ -203,10 +224,16 @@ def plot_frequency_spectrum(data, fs=1000, save_path=None):
     plt.tight_layout()
 
     if save_path:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"✓ 频谱图已保存到: {save_path}")
 
-    plt.show()
+    if show is None:
+        show = _is_interactive_backend()
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
 
 
 def main():
@@ -220,6 +247,12 @@ def main():
     parser.add_argument('--save', type=str, help='保存图片的前缀路径')
 
     args = parser.parse_args()
+
+    # 检查文件是否存在，给出更友好的提示
+    if not Path(args.filepath).exists():
+        print(f"错误: 未找到数据文件: {args.filepath}")
+        print("提示: 你可以先生成样本数据：python tools/generate_sample_data.py")
+        raise SystemExit(1)
 
     # 加载数据
     data = load_emg_data(args.filepath)

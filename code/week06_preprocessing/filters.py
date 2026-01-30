@@ -5,8 +5,15 @@ EMG信号滤波器模块
 """
 
 import numpy as np
-from scipy.signal import butter, filtfilt, iirnotch
+from scipy.signal import butter, filtfilt, iirnotch, freqz
 import matplotlib.pyplot as plt
+
+
+def _is_interactive_backend():
+    """判断当前 matplotlib 后端是否支持交互式显示。"""
+    backend = str(plt.get_backend()).lower()
+    return backend not in {'agg', 'pdf', 'ps', 'svg', 'cairo', 'template'}
+
 
 class EMGFilters:
     """EMG信号滤波器类"""
@@ -19,6 +26,74 @@ class EMGFilters:
             fs: 采样率（Hz）
         """
         self.fs = fs
+
+    def design_bandpass(self, lowcut=20, highcut=500, order=4):
+        """
+        设计带通滤波器（教学用途：返回滤波器系数）
+
+        返回:
+            b, a: IIR 滤波器系数
+        """
+        nyquist = 0.5 * self.fs
+
+        # 避免 highcut 贴近 Nyquist 造成数值不稳定
+        max_freq = nyquist * 0.95
+        if highcut >= max_freq:
+            highcut = max_freq
+
+        if lowcut <= 0:
+            raise ValueError("lowcut must be > 0")
+        if highcut <= lowcut:
+            raise ValueError("highcut must be > lowcut")
+
+        low = lowcut / nyquist
+        high = highcut / nyquist
+        return butter(order, [low, high], btype='band')
+
+    def design_notch(self, freq=50, Q=30):
+        """
+        设计陷波滤波器（教学用途：返回滤波器系数）
+
+        返回:
+            b, a: IIR 滤波器系数
+        """
+        nyquist = 0.5 * self.fs
+        if not (0 < freq < nyquist):
+            raise ValueError(f"freq must satisfy 0 < freq < Nyquist({nyquist:.1f}Hz)")
+        return iirnotch(freq, Q, self.fs)
+
+    def plot_frequency_response(self, b, a, title='Frequency response',
+                                save_path=None, show=None):
+        """
+        绘制滤波器幅频响应（教学用途）
+
+        参数:
+            b, a: IIR 滤波器系数
+            title: 图标题
+            save_path: 保存路径（可选）
+            show: 是否显示图像；None 表示自动根据后端决定
+        """
+        freqs, h = freqz(b, a, worN=4096, fs=self.fs)
+        magnitude_db = 20 * np.log10(np.maximum(np.abs(h), 1e-12))
+
+        fig, ax = plt.subplots(1, 1, figsize=(10, 4))
+        ax.plot(freqs, magnitude_db, linewidth=1.5)
+        ax.set_title(title)
+        ax.set_xlabel('Frequency (Hz)')
+        ax.set_ylabel('Magnitude (dB)')
+        ax.grid(True, alpha=0.3)
+
+        if save_path:
+            fig.savefig(save_path, dpi=150, bbox_inches='tight')
+
+        if show is None:
+            show = _is_interactive_backend()
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
+
+        return freqs, magnitude_db
 
     def bandpass_filter(self, signal, lowcut=20, highcut=500, order=4):
         """
@@ -263,3 +338,30 @@ if __name__ == "__main__":
     print("  from filters import EMGFilters")
     print("  filters = EMGFilters(fs=1000)")
     print("  filtered = filters.preprocess_emg(signal)\n")
+
+    # （可选）生成滤波器幅频响应图（用于教学展示）
+    try:
+        bandpass_path = 'code/week06_preprocessing/bandpass_response.png'
+        notch_path = 'code/week06_preprocessing/notch_response.png'
+
+        b_bp, a_bp = filters.design_bandpass(lowcut=20, highcut=500, order=4)
+        filters.plot_frequency_response(
+            b_bp, a_bp,
+            title='Bandpass response (20-500 Hz)',
+            save_path=bandpass_path,
+            show=None,
+        )
+
+        b_notch, a_notch = filters.design_notch(freq=50, Q=30)
+        filters.plot_frequency_response(
+            b_notch, a_notch,
+            title='Notch response (50 Hz)',
+            save_path=notch_path,
+            show=None,
+        )
+
+        print("已保存滤波器幅频响应图：")
+        print(f"  - {bandpass_path}")
+        print(f"  - {notch_path}")
+    except Exception as e:
+        print(f"WARNING: 无法生成频率响应图: {e}")

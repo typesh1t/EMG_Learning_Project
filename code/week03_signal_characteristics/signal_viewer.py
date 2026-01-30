@@ -7,6 +7,7 @@ EMG信号时域和频域查看器
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogFormatter
 from scipy.fft import fft, fftfreq
 import sys
 from pathlib import Path
@@ -14,6 +15,12 @@ from pathlib import Path
 # 配置字体
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial']
 plt.rcParams['axes.unicode_minus'] = False
+
+
+def _is_interactive_backend():
+    """判断当前 matplotlib 后端是否支持交互式显示。"""
+    backend = str(plt.get_backend()).lower()
+    return backend not in {'agg', 'pdf', 'ps', 'svg', 'cairo', 'template'}
 
 def load_signal(filepath):
     """加载EMG信号"""
@@ -106,7 +113,7 @@ def analyze_frequency_domain(signal, fs=1000):
 
     return features
 
-def plot_signal_characteristics(data, fs=1000, channel='channel_0'):
+def plot_signal_characteristics(data, fs=1000, channel='channel_0', show=None):
     """
     绘制信号的时域和频域特征
 
@@ -167,6 +174,7 @@ def plot_signal_characteristics(data, fs=1000, channel='channel_0'):
     ax4 = plt.subplot(3, 2, 4)
     ax4.semilogy(freq_features['frequencies'], freq_features['power'],
                 linewidth=1, color='green')
+    ax4.yaxis.set_major_formatter(LogFormatter(base=10, labelOnlyBase=False))
     ax4.set_xlabel('频率 (Hz)')
     ax4.set_ylabel('功率 (对数)')
     ax4.set_title('功率谱（对数坐标）')
@@ -218,7 +226,12 @@ def plot_signal_characteristics(data, fs=1000, channel='channel_0'):
     plt.savefig(output_file, dpi=150, bbox_inches='tight')
     print(f"\n图表已保存到: {output_file}")
 
-    plt.show()
+    if show is None:
+        show = _is_interactive_backend()
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
 
     return time_features, freq_features
 

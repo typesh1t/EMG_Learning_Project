@@ -6,18 +6,26 @@ EMG信号噪声识别和分析
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogFormatter
 from scipy.fft import fft, fftfreq
 from scipy.signal import butter, filtfilt
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial']
 plt.rcParams['axes.unicode_minus'] = False
 
+
+def _is_interactive_backend():
+    """判断当前 matplotlib 后端是否支持交互式显示。"""
+    backend = str(plt.get_backend()).lower()
+    return backend not in {'agg', 'pdf', 'ps', 'svg', 'cairo', 'template'}
+
 def generate_clean_emg(duration=5, fs=1000):
     """生成干净的EMG信号（用于演示）"""
     t = np.linspace(0, duration, int(duration * fs))
     # 基础EMG信号（多频率随机成分）
     signal = np.zeros(len(t))
-    for freq in range(50, 200, 10):
+    # 避免把 50Hz 本身写进“干净信号”，否则后续工频检测会出现“假阳性”。
+    for freq in range(70, 200, 10):
         amplitude = np.random.uniform(0.1, 0.3)
         phase = np.random.uniform(0, 2*np.pi)
         signal += amplitude * np.sin(2 * np.pi * freq * t + phase)
@@ -74,7 +82,9 @@ def add_electrode_noise(signal, amplitude=0.2):
     noise = np.random.normal(0, amplitude, len(signal))
     return signal + noise
 
-def detect_powerline_interference(signal, fs=1000, freq_range=(45, 65)):
+def detect_powerline_interference(signal, fs=1000, freq_range=(45, 65),
+                                  relative_power_threshold=10.0,
+                                  peak_to_floor_ratio_threshold=6.0):
     """
     检测工频干扰
 
@@ -85,22 +95,39 @@ def detect_powerline_interference(signal, fs=1000, freq_range=(45, 65)):
     xf = fftfreq(N, 1/fs)[:N//2]
     power = 2.0/N * np.abs(yf[:N//2])
 
-    # 查找指定范围内的峰值
+    # 查找指定范围内的峰值（工频通常在 50Hz/60Hz 附近）
     mask = (xf >= freq_range[0]) & (xf <= freq_range[1])
     if np.any(mask):
+        band_xf = xf[mask]
+        band_power = power[mask]
+
         peak_idx = np.argmax(power[mask])
         peak_freq = xf[mask][peak_idx]
         peak_power = power[mask][peak_idx]
 
-        # 计算该频率的相对功率
-        total_power = np.sum(power ** 2)
-        relative_power = (peak_power ** 2) / total_power * 100
+        # 计算该频率在“工频附近频带”内的相对功率（比全频更稳健）
+        band_total_power = np.sum(band_power ** 2)
+        relative_power = (peak_power ** 2) / band_total_power * 100 if band_total_power > 0 else 0.0
+
+        # 计算峰值相对于邻域“噪声底”的突出程度：peak / median(neighborhood)
+        exclude = np.abs(band_xf - peak_freq) <= 1.0  # 排除峰值±1Hz
+        neighborhood = band_power[~exclude] if np.any(~exclude) else band_power
+        noise_floor = float(np.median(neighborhood)) if len(neighborhood) > 0 else 0.0
+        peak_to_floor_ratio = peak_power / (noise_floor + 1e-12)
+
+        detected = (
+            (relative_power >= relative_power_threshold)
+            and (peak_to_floor_ratio >= peak_to_floor_ratio_threshold)
+        )
 
         return {
-            'detected': True,
+            'detected': detected,
             'frequency': peak_freq,
             'power': peak_power,
-            'relative_power': relative_power
+            'relative_power': relative_power,
+            'threshold': relative_power_threshold,
+            'peak_to_floor_ratio': peak_to_floor_ratio,
+            'ratio_threshold': peak_to_floor_ratio_threshold,
         }
 
     return {'detected': False}
@@ -163,7 +190,7 @@ def analyze_noise_types(signal, fs=1000):
 
     return results
 
-def plot_noise_comparison():
+def plot_noise_comparison(show=None, save_path='noise_types_comparison.png'):
     """
     可视化不同噪声类型的对比
     """
@@ -199,6 +226,9 @@ def plot_noise_comparison():
         power = 2.0/N * np.abs(yf[:N//2])
 
         ax_freq.semilogy(xf, power, linewidth=1)
+        # semilogy 默认使用 mathtext 生成 10^{-x} 形式刻度；某些字体缺少 “−” 会产生 glyph 警告。
+        # 用 LogFormatter 输出普通字符串刻度，避免字体告警，同时更直观。
+        ax_freq.yaxis.set_major_formatter(LogFormatter(base=10, labelOnlyBase=False))
         ax_freq.set_ylabel('功率')
         ax_freq.set_title(f'{name} - 频域')
         ax_freq.set_xlim(0, 300)
@@ -216,9 +246,15 @@ def plot_noise_comparison():
             ax_freq.set_xlabel('频率 (Hz)')
 
     plt.tight_layout()
-    plt.savefig('noise_types_comparison.png', dpi=150, bbox_inches='tight')
-    print("\n图表已保存到: noise_types_comparison.png")
-    plt.show()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    print(f"\n图表已保存到: {save_path}")
+
+    if show is None:
+        show = _is_interactive_backend()
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
 
 def demonstrate_noise_detection():
     """
